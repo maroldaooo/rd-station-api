@@ -61,7 +61,7 @@ class RDStationAPI:
         }
         
         # Endpoint de emails (ajuste conforme documentação RD)
-        url = f'{self.base_url}/emails'
+        url = f'{self.base_url}/analytics/emails'
         
         params = {}
         if data_inicio:
