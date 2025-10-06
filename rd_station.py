@@ -65,7 +65,7 @@ class RDStationAPI:
             data_fim = datetime.now().strftime('%Y-%m-%d')
         
         if not data_inicio:
-            data_inicio = (datetime.now() - timedelta(days=45)).strftime('%Y-%m-%d')
+            data_inicio = (datetime.now() - timedelta(days=44)).strftime('%Y-%m-%d')
         
         url = f'{self.base_url}/analytics/emails'
         
