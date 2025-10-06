@@ -52,26 +52,34 @@ class RDStationAPI:
         return self.access_token
     
     def get_campanhas_email(self, data_inicio=None, data_fim=None):
-        """Busca campanhas de email do RD Station"""
-        token = self.get_valid_token()
-        
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        }
-        
-        # Endpoint de emails (ajuste conforme documentação RD)
-        url = f'{self.base_url}/analytics/emails'
-        
-        params = {}
-        if data_inicio:
-            params['start_date'] = data_inicio
-        if data_fim:
-            params['end_date'] = data_fim
-        
-        response = requests.get(url, headers=headers, params=params)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"Erro ao buscar campanhas: {response.text}")
+    """Busca campanhas de email do RD Station"""
+    token = self.get_valid_token()
+    
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Se não informar datas, usa últimos 90 dias
+    from datetime import datetime, timedelta
+    
+    if not data_fim:
+        data_fim = datetime.now().strftime('%Y-%m-%d')
+    
+    if not data_inicio:
+        # 90 dias atrás
+        data_inicio = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+    
+    url = f'{self.base_url}/analytics/emails'
+    
+    params = {
+        'start_date': data_inicio,
+        'end_date': data_fim
+    }
+    
+    response = requests.get(url, headers=headers, params=params)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Erro ao buscar campanhas: {response.text}")
