@@ -1,36 +1,41 @@
-from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.responses import JSONResponse
-from rd_station import RDStationAPI
-from typing import Optional
 import os
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from typing import Optional
+from rd_station import RDStationAPI
 
+# -------------------------------
 # Instância da aplicação
+# -------------------------------
 app = FastAPI(
     title="RD Station Proxy API",
     description="Proxy entre Copilot Studio e RD Station",
     version="1.0.0"
 )
 
-# Instância global da API RD Station
-rd_api = RDStationAPI()
-
-# Leitura da chave de segurança (defina no Render)
-PROXY_API_KEY = os.getenv("PROXY_API_KEY")  # ex: "minha-chave-secreta"
-API_KEY_HEADER = os.getenv("API_KEY_HEADER_NAME", "X-API-KEY")
-
+# -------------------------------
+# Variáveis de ambiente
+# -------------------------------
+rd_api = RDStationAPI()  # instância da API RD Station
+PROXY_API_KEY = os.getenv("PROXY_API_KEY")  # chave secreta do proxy
+API_KEY_HEADER = os.getenv("API_KEY_HEADER_NAME", "X-API-KEY")  # nome do header
 
 # -------------------------------
-# Middleware simples para autenticação via header
+# Middleware para autenticação
 # -------------------------------
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
-    # rotas livres (sem necessidade de chave)
+    # Rotas públicas
     if request.url.path in ["/", "/health"]:
         return await call_next(request)
 
+    # Verifica se o header existe e bate com a chave do Render
     if PROXY_API_KEY:
-        key = request.headers.get(API_KEY_HEADER)
-        if not key or key != PROXY_API_KEY:
+        header_key = request.headers.get(API_KEY_HEADER)
+        # Log para depuração
+        print(f"[DEBUG] Header recebido: {header_key}")
+        print(f"[DEBUG] Chave do Render: {PROXY_API_KEY}")
+        if not header_key or header_key != PROXY_API_KEY:
             return JSONResponse(
                 status_code=403,
                 content={"error": "Acesso negado. Chave de API inválida."}
@@ -38,11 +43,9 @@ async def verify_api_key(request: Request, call_next):
 
     return await call_next(request)
 
-
 # -------------------------------
-# Endpoints
+# Endpoints públicos
 # -------------------------------
-
 @app.get("/")
 def home():
     """Endpoint de teste"""
@@ -51,7 +54,18 @@ def home():
         "message": "API RD Station funcionando e protegida com X-API-KEY"
     }
 
+@app.get("/health")
+def health_check():
+    """Verifica se o token do RD Station está válido"""
+    try:
+        token_valido = rd_api.is_token_valid()
+        return {"status": "healthy", "token_valid": token_valido}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
 
+# -------------------------------
+# Endpoints protegidos
+# -------------------------------
 @app.get("/campanhas")
 def get_campanhas(
     data_inicio: Optional[str] = None,
@@ -69,23 +83,6 @@ def get_campanhas(
         return {"success": True, "data": dados}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/health")
-def health_check():
-    """Verifica se o token do RD Station está válido"""
-    try:
-        token_valido = rd_api.is_token_valid()
-        return {
-            "status": "healthy",
-            "token_valid": token_valido
-        }
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
-
 
 # -------------------------------
 # Ponto de entrada (Render usa Gunicorn)
